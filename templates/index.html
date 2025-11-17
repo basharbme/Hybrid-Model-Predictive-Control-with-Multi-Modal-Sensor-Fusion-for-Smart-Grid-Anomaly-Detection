@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>IoT MPC Control Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/luxon@3.0.1/build/global/luxon.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.2.0/dist/chartjs-adapter-luxon.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-streaming@2.0.0/dist/chartjs-plugin-streaming.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .chart-container { width: 90%; margin: 20px auto; height: 300px; }
+        .control-panel { background: #f5f5f5; padding: 20px; border-radius: 5px; margin: 20px auto; width: 90%; }
+        .anomaly { background-color: #ffcccc; }
+    </style>
+</head>
+<body>
+    <h1>IoT MPC Control Dashboard</h1>
+    
+    <div class="chart-container">
+        <h2>Voltage (Vrms)</h2>
+        <canvas id="voltageChart"></canvas>
+    </div>
+    
+    <div class="chart-container">
+        <h2>Current (Irms)</h2>
+        <canvas id="currentChart"></canvas>
+    </div>
+    
+    <div class="chart-container">
+        <h2>Temperature (°C)</h2>
+        <canvas id="tempChart"></canvas>
+    </div>
+    
+    <div class="control-panel" id="controlPanel">
+        <h2>Control Actions</h2>
+        <div id="controlLog"></div>
+    </div>
+
+    <script>
+        // Initialize WebSocket connection
+        const socket = new WebSocket(`ws://${window.location.host}/ws`);
+        
+        // Initialize charts with streaming plugin
+        const voltageCtx = document.getElementById('voltageChart').getContext('2d');
+        const currentCtx = document.getElementById('currentChart').getContext('2d');
+        const tempCtx = document.getElementById('tempChart').getContext('2d');
+        
+        const chartOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    type: 'realtime',
+                    realtime: {
+                        duration: 30000,  // show 30 seconds of data
+                        refresh: 1000,
+                        delay: 1000,
+                        onRefresh: chart => {}
+                    }
+                },
+                y: {
+                    title: {
+                        display: true,
+                        text: 'Value'
+                    }
+                }
+            },
+            interaction: {
+                intersect: false
+            }
+        };
+        
+        const voltageChart = new Chart(voltageCtx, {
+            type: 'line',
+            data: {
+                datasets: [{
+                    label: 'Vrms (V)',
+                    borderColor: 'rgb(75, 192, 192)',
+                    backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    data: []
+                }]
+            },
+            options: chartOptions
+        });
+        
+        const currentChart = new Chart(currentCtx, {
+            type: 'line',
+            data: {
+                datasets: [{
+                    label: 'Irms (A)',
+                    borderColor: 'rgb(255, 99, 132)',
+                    backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    data: []
+                }]
+            },
+            options: chartOptions
+        });
+        
+        const tempChart = new Chart(tempCtx, {
+            type: 'line',
+            data: {
+                datasets: [{
+                    label: 'Temperature (°C)',
+                    borderColor: 'rgb(54, 162, 235)',
+                    backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    data: []
+                }]
+            },
+            options: chartOptions
+        });
+        
+        // Handle incoming WebSocket messages
+        socket.onmessage = function(event) {
+            const data = JSON.parse(event.data);
+            
+            if (data.type === 'sensor') {
+                // Update charts with new data points
+                const timestamp = luxon.DateTime.fromSeconds(data.time).toJSDate();
+                
+                voltageChart.data.datasets[0].data.push({
+                    x: timestamp,
+                    y: data.Vrms
+                });
+                
+                currentChart.data.datasets[0].data.push({
+                    x: timestamp,
+                    y: data.Irms
+                });
+                
+                tempChart.data.datasets[0].data.push({
+                    x: timestamp,
+                    y: data.Temp
+                });
+                
+                // Highlight during anomalies
+                const controlPanel = document.getElementById('controlPanel');
+                if (data.anomaly) {
+                    controlPanel.classList.add('anomaly');
+                } else {
+                    controlPanel.classList.remove('anomaly');
+                }
+                
+                // Update charts
+                voltageChart.update('none');
+                currentChart.update('none');
+                tempChart.update('none');
+                
+            } else if (data.type === 'control') {
+                // Log control actions
+                const timestamp = new Date(data.time * 1000).toLocaleTimeString();
+                const logEntry = document.createElement('p');
+                logEntry.innerHTML = `<strong>${timestamp}</strong> - Control applied: ` +
+                                     `ΔVrms = <span style="color:blue">${data.vrms_adj.toFixed(2)}V</span>, ` +
+                                     `ΔIrms = <span style="color:red">${data.irms_adj.toFixed(2)}A</span>`;
+                document.getElementById('controlLog').prepend(logEntry);
+            }
+        };
+        
+        // Handle WebSocket errors
+        socket.onerror = function(error) {
+            console.error('WebSocket error:', error);
+        };
+    </script>
+</body>
+</html>

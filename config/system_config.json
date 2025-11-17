@@ -1,0 +1,31 @@
+{
+  "time_steps": 24,
+  "ts_features": [
+    "Temp",
+    "Solar",
+    "Wind",
+    "Dew",
+    "Out"
+  ],
+  "control_features": [
+    "MaxTemp",
+    "AmbientTemp",
+    "TempDiff"
+  ],
+  "output_features": [
+    "Vrms_adjust",
+    "Irms_adjust"
+  ],
+  "threshold": 0.6,
+  "iot_gateway": "opc.tcp://localhost:4840",
+  "normal_ranges": {
+    "Vrms": [
+      210,
+      250
+    ],
+    "Irms": [
+      80,
+      120
+    ]
+  }
+}

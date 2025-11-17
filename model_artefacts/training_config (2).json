@@ -1,0 +1,27 @@
+{
+  "sequence_length": 24,
+  "input_shapes": {
+    "lstm_input": [
+      24,
+      5
+    ],
+    "cnn_input": [
+      3
+    ]
+  },
+  "threshold": 0.6,
+  "features": {
+    "thermal": [
+      "Max Temp (\u00b0C)",
+      "Ambient Temp (\u00b0C)",
+      "Temp Difference (\u00b0C)"
+    ],
+    "time_series": [
+      "Temp",
+      "Solar",
+      "Wind",
+      "Dew",
+      "Out"
+    ]
+  }
+}
